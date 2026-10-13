@@ -1,0 +1,38 @@
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+  workflow_call:
+
+permissions:
+  contents: read
+
+name: CI
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version:
+          - '3.11'
+          - '3.12'
+          - '3.13'
+          - '3.14'
+      fail-fast: false
+    steps:
+      - uses: actions/checkout@v7
+      - name: Install uv
+        uses: astral-sh/setup-uv@v10.0.1
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install the project
+        run: uv sync --dev
+      - name: Lint
+        run: uv run ruff check && uv run ruff format --check
+      - name: Run tests
+        run: uv run pytest
+      - name: Check that the generated models are current
+        run: |
+          uv run python scripts/generate_models.py
+          git diff --exit-code -- src/entropy_data_sdk/models.py

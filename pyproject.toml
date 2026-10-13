@@ -1,0 +1,51 @@
+[project]
+name = "entropy-data-sdk"
+version = "0.1.0"
+description = "Python SDK for the Entropy Data API and for building connectors"
+readme = "README.md"
+authors = [{ name = "Entropy Data", email = "support@entropy-data.com" }]
+license = "MIT"
+license-files = ["LICENSE"]
+requires-python = ">=3.11"
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Topic :: Software Development :: Libraries",
+]
+keywords = ["entropy-data", "data-product", "data-contract", "data-mesh", "data-governance", "sdk", "connector"]
+dependencies = [
+    "httpx>=0.28.1",
+    "pydantic>=2.14.1",
+]
+
+[project.urls]
+Homepage = "https://entropy-data.com"
+Documentation = "https://docs.entropy-data.com"
+Repository = "https://github.com/entropy-data/entropy-data-sdk-python"
+
+[build-system]
+requires = ["uv_build>=0.13.0,<0.14.0"]
+build-backend = "uv_build"
+
+[dependency-groups]
+dev = [
+    "pytest>=9.1.1",
+    "pyyaml>=6.0.3",
+    "respx>=0.23.1",
+    "ruff>=0.17.0",
+]
+
+[tool.ruff]
+line-length = 120
+extend-exclude = ["src/entropy_data_sdk/models.py"]
+
+[tool.ruff.lint]
+select = ["E4", "E7", "E9", "F", "I"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

@@ -1,0 +1,13 @@
+#!/bin/bash
+# Fetches the current OpenAPI spec and the JSON schemas it references. Run scripts/generate_models.py afterwards.
+set -euo pipefail
+
+cd "$(dirname "$0")/.."
+HOST="${ENTROPY_DATA_HOST:-https://api.entropy-data.com}"
+
+curl -sSf -o spec/openapi.yaml "$HOST/openapi.yaml"
+mkdir -p spec/schemas
+for schema in odcs-json-schema-v3.1.0.json dataproduct-0.0.1.json odps-json-schema-v1.0.0.json; do
+  curl -sSf -o "spec/schemas/$schema" "$HOST/schemas/$schema"
+done
+echo "Updated spec/ from $HOST"
