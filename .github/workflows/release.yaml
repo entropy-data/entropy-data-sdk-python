@@ -71,7 +71,7 @@ jobs:
         run: |
           VERSION="${{ github.ref_name }}"
           VERSION="${VERSION#v}"
-          sed -n "/^## \[$VERSION\]/,/^## \[/p" CHANGELOG.md | head -n -1 > release_notes.md
+          awk -v v="$VERSION" '/^## \[/ { printing = index($0, "[" v "]") > 0 } printing' CHANGELOG.md > release_notes.md
           cat release_notes.md
       - uses: actions/download-artifact@v8
         with:
