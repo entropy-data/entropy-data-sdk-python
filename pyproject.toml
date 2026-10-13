@@ -1,6 +1,6 @@
 [project]
 name = "entropy-data-sdk"
-version = "0.1.0"
+version = "0.1.1"
 description = "Python SDK for the Entropy Data API and for building connectors"
 readme = "README.md"
 authors = [{ name = "Entropy Data", email = "support@entropy-data.com" }]
