@@ -29,11 +29,13 @@ except PackageNotFoundError:
     _SDK_VERSION = "dev"
 
 
-def seg(value: str) -> str:
+def seg(value: str, *, safe: str = "") -> str:
     """Validate and percent-encode one path segment, typically a resource id.
 
     Rejects empty, overlong and ``..`` segments. Everything else is encoded, so an id containing ``?``, ``#`` or a
-    space reaches the server intact instead of changing the request.
+    space reaches the server intact instead of changing the request. ``safe="/"`` keeps the slashes of an id that
+    spans several segments, such as a hierarchical tag id: the server reads those from the raw path and rejects an
+    encoded slash.
     """
     if not isinstance(value, str) or not value:
         raise ValueError("Resource id must be a non-empty string.")
@@ -41,7 +43,7 @@ def seg(value: str) -> str:
         raise ValueError(f"Resource id must not exceed {MAX_SEGMENT_LENGTH} characters.")
     if ".." in value.split("/"):
         raise ValueError(f"Resource id must not contain path traversal: {value!r}")
-    return quote(value, safe="")
+    return quote(value, safe=safe)
 
 
 def to_payload(body: BaseModel | dict[str, Any]) -> dict[str, Any]:

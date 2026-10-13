@@ -24,7 +24,8 @@ class AssetsApi(ApiGroup):
         return self._http.get_model(f"/api/assets/{seg(id)}/assigned-tags", AssetTags)
 
     def assign_tag(self, id: str, tag_id: str) -> None:
-        self._http.put_json(f"/api/assets/{seg(id)}/assigned-tags/{seg(tag_id)}", {})
+        """Assign a tag by its id, which may be hierarchical (``governance/PII``)."""
+        self._http.request("PUT", f"/api/assets/{seg(id)}/assigned-tags/{seg(tag_id, safe='/')}")
 
     def unassign_tag(self, id: str, tag_id: str) -> None:
-        self._http.delete(f"/api/assets/{seg(id)}/assigned-tags/{seg(tag_id)}")
+        self._http.delete(f"/api/assets/{seg(id)}/assigned-tags/{seg(tag_id, safe='/')}")

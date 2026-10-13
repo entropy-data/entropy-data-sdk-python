@@ -124,6 +124,17 @@ def test_path_segments_are_encoded_and_validated(api, client):
             seg(bad)
 
 
+def test_hierarchical_tag_ids_keep_their_slashes(api, client):
+    assign = api.put("/api/assets/a1/assigned-tags/governance/PII").respond(200)
+    unassign = api.delete("/api/assets/a1/assigned-tags/governance/PII").respond(200)
+
+    client.assets.assign_tag("a1", "governance/PII")
+    client.assets.unassign_tag("a1", "governance/PII")
+
+    assert assign.called and unassign.called
+    assert assign.calls[0].request.content == b""
+
+
 def test_unknown_enum_values_are_kept(api, client):
     api.get("/api/access/x").respond(200, json={**ACCESS, "info": {**ACCESS["info"], "status": "brand-new"}})
 

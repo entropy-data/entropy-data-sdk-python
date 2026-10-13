@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Unreleased]
+
+### Fixed
+
+- `assets.assign_tag` and `assets.unassign_tag` keep the slashes of a hierarchical tag id such as `governance/PII`
+  in the request path; the encoded form was rejected by the server
+
 ## [0.1.0] - 2026-10-13
 
 ### Added
