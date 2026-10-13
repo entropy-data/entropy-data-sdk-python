@@ -107,3 +107,71 @@ def test_remote_state_round_trip(api, client):
     body = put.calls.last.request.content
     assert b'"state":{"lastEventId":"new"}' in body
     assert b'"type":"databricks"' in body
+
+
+def test_path_segments_are_encoded_and_validated(api, client):
+    from entropy_data_sdk._http import seg
+
+    route = api.get("/api/assets/a%20b%3Fc%23d").respond(200, json={"id": "a b?c#d"})
+
+    client.assets.get("a b?c#d")
+
+    assert route.called
+    assert seg("catalog.schema.table") == "catalog.schema.table"
+    assert seg("user@example.test") == "user%40example.test"
+    for bad in ("", "../x", "a/../b", "x" * 257):
+        with pytest.raises(ValueError):
+            seg(bad)
+
+
+def test_unknown_enum_values_are_kept(api, client):
+    api.get("/api/access/x").respond(200, json={**ACCESS, "info": {**ACCESS["info"], "status": "brand-new"}})
+
+    access = client.access.get("x")
+
+    assert access.info.status == "brand-new"
+    assert isinstance(access.info.status, models.AccessInfoStatus)
+    assert access.model_dump(mode="json")["info"]["status"] == "brand-new"
+
+
+def test_401_maps_to_unauthorized(api, client):
+    from entropy_data_sdk import UnauthorizedError
+
+    api.get("/api/teams").respond(401, json={"detail": "Invalid API key"})
+
+    with pytest.raises(UnauthorizedError):
+        client.teams.list()
+
+
+def test_lists_are_pages_with_has_next(api, client):
+    api.get("/api/teams").respond(
+        200, json=[{"id": "a", "name": "A", "type": "Team"}], headers={"Link": '<x>; rel="next"'}
+    )
+    api.get("/api/dataproducts").respond(200, json=[{"id": "dp"}])
+
+    teams = client.teams.list()
+    products = client.data_products.list()
+
+    assert teams.has_next is True
+    assert teams[0].id == "a"
+    assert products.has_next is False
+    assert products == [{"id": "dp"}]
+
+
+def test_write_calls_expose_the_html_location(api, client):
+    api.put("/api/teams/a").respond(200, headers={"location-html": "https://app.example.test/teams/a"})
+    api.post("/api/access/x/approve").respond(200)
+
+    result = client.http.put_json("/api/teams/a", {"id": "a"})
+    approved = client.http.post_json("/api/access/x/approve")
+
+    assert result.location_html == "https://app.example.test/teams/a"
+    assert result.data is None
+    assert approved.location_html is None
+
+
+def test_transport_retries_connection_failures():
+    from entropy_data_sdk import EntropyDataClient
+
+    with EntropyDataClient("key", "https://api.example.test", retries=5) as client:
+        assert client.http._client._transport._pool._retries == 5

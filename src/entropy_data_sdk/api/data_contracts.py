@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from entropy_data_sdk._http import Page, seg
 from entropy_data_sdk.api._base import ApiGroup
 from entropy_data_sdk.models import (
     DataContractBranch,
@@ -34,7 +35,7 @@ class DataContractsApi(ApiGroup):
         status: str | None = None,
         sort: str | None = None,
         page: int | None = None,
-    ) -> list[DataContract]:
+    ) -> Page[DataContract]:
         params = {
             "q": q,
             "owner": owner,
@@ -46,78 +47,84 @@ class DataContractsApi(ApiGroup):
             "sort": sort,
             "p": page,
         }
-        return self._http.get_json("/api/datacontracts", params=params)
+        return self._http.get_page("/api/datacontracts", params=params)
 
     def get(self, id: str) -> DataContract:
-        return self._http.get_json(f"/api/datacontracts/{id}")
+        return self._http.get_json(f"/api/datacontracts/{seg(id)}")
 
     def put(self, id: str, data_contract: DataContract) -> None:
-        self._http.put_json(f"/api/datacontracts/{id}", data_contract)
+        self._http.put_json(f"/api/datacontracts/{seg(id)}", data_contract)
 
     def delete(self, id: str) -> None:
-        self._http.delete(f"/api/datacontracts/{id}")
+        self._http.delete(f"/api/datacontracts/{seg(id)}")
 
     def get_yaml(self, id: str) -> str:
-        return self._http.get_text(f"/api/datacontracts/{id}/datacontract.yaml")
+        return self._http.get_text(f"/api/datacontracts/{seg(id)}/datacontract.yaml")
 
     def test(self, id: str, *, server: str | None = None, timeout: float | None = None) -> TestResults:
         return self._http.post_model(
-            f"/api/datacontracts/{id}/test", TestResults, params={"server": server}, timeout=timeout
+            f"/api/datacontracts/{seg(id)}/test", TestResults, params={"server": server}, timeout=timeout
         )
 
     def generate(
         self, id: str, request: GenerateRequest | dict[str, Any], *, timeout: float | None = None
     ) -> GenerateResponse:
-        return self._http.post_model(f"/api/datacontracts/{id}/generate", GenerateResponse, request, timeout=timeout)
+        return self._http.post_model(
+            f"/api/datacontracts/{seg(id)}/generate", GenerateResponse, request, timeout=timeout
+        )
 
     def import_from_git(self, request: GitImportRequest | dict[str, Any]) -> GitConnectionResponse:
         return self._http.post_model("/api/datacontracts/import/git", GitConnectionResponse, request)
 
     def get_git_connection(self, id: str) -> GitConnectionResponse:
-        return self._http.get_model(f"/api/datacontracts/{id}/gitconnection", GitConnectionResponse)
+        return self._http.get_model(f"/api/datacontracts/{seg(id)}/gitconnection", GitConnectionResponse)
 
     def put_git_connection(self, id: str, request: GitConnectionRequest | dict[str, Any]) -> GitConnectionResponse:
-        return self._http.put_model(f"/api/datacontracts/{id}/gitconnection", request, GitConnectionResponse)
+        return self._http.put_model(f"/api/datacontracts/{seg(id)}/gitconnection", request, GitConnectionResponse)
 
     def delete_git_connection(self, id: str) -> None:
-        self._http.delete(f"/api/datacontracts/{id}/gitconnection")
+        self._http.delete(f"/api/datacontracts/{seg(id)}/gitconnection")
 
     def pull_from_git(self, id: str) -> GitConnectionResponse:
-        return self._http.post_model(f"/api/datacontracts/{id}/gitconnection/pull", GitConnectionResponse)
+        return self._http.post_model(f"/api/datacontracts/{seg(id)}/gitconnection/pull", GitConnectionResponse)
 
     def push_to_git(self, id: str, request: GitPushRequest | dict[str, Any]) -> GitConnectionResponse:
-        return self._http.post_model(f"/api/datacontracts/{id}/gitconnection/push", GitConnectionResponse, request)
+        return self._http.post_model(f"/api/datacontracts/{seg(id)}/gitconnection/push", GitConnectionResponse, request)
 
     def push_to_git_as_pull_request(
         self, id: str, request: GitPullRequestRequest | dict[str, Any]
     ) -> GitConnectionResponse:
-        return self._http.post_model(f"/api/datacontracts/{id}/gitconnection/push-pr", GitConnectionResponse, request)
+        return self._http.post_model(
+            f"/api/datacontracts/{seg(id)}/gitconnection/push-pr", GitConnectionResponse, request
+        )
 
     # Branches
 
-    def list_branches(self, id: str) -> list[DataContractBranch]:
-        return self._http.get_list(f"/api/datacontracts/{id}/branches", DataContractBranch)
+    def list_branches(self, id: str) -> Page[DataContractBranch]:
+        return self._http.get_list(f"/api/datacontracts/{seg(id)}/branches", DataContractBranch)
 
     def get_branch(self, id: str, branch: str) -> DataContractBranch:
-        return self._http.get_model(f"/api/datacontracts/{id}/branches/{branch}", DataContractBranch)
+        return self._http.get_model(f"/api/datacontracts/{seg(id)}/branches/{seg(branch)}", DataContractBranch)
 
     def create_branch(self, id: str, branch: str) -> DataContractBranch:
-        return self._http.put_model(f"/api/datacontracts/{id}/branches/{branch}", {}, DataContractBranch)
+        return self._http.put_model(f"/api/datacontracts/{seg(id)}/branches/{seg(branch)}", {}, DataContractBranch)
 
     def delete_branch(self, id: str, branch: str) -> None:
-        self._http.delete(f"/api/datacontracts/{id}/branches/{branch}")
+        self._http.delete(f"/api/datacontracts/{seg(id)}/branches/{seg(branch)}")
 
     def rebase_branch(self, id: str, branch: str) -> DataContractBranch:
-        return self._http.post_model(f"/api/datacontracts/{id}/branches/{branch}/rebase", DataContractBranch)
+        return self._http.post_model(f"/api/datacontracts/{seg(id)}/branches/{seg(branch)}/rebase", DataContractBranch)
 
     def get_branch_yaml(self, id: str, branch: str) -> str:
-        return self._http.get_text(f"/api/datacontracts/{id}/branches/{branch}/datacontract.yaml")
+        return self._http.get_text(f"/api/datacontracts/{seg(id)}/branches/{seg(branch)}/datacontract.yaml")
 
     def put_branch_yaml(self, id: str, branch: str, yaml_text: str) -> None:
-        self._http.put_text(f"/api/datacontracts/{id}/branches/{branch}/datacontract.yaml", yaml_text)
+        self._http.put_text(f"/api/datacontracts/{seg(id)}/branches/{seg(branch)}/datacontract.yaml", yaml_text)
 
-    def list_branch_changes(self, id: str, branch: str) -> list[DataContractBranchChange]:
-        return self._http.get_list(f"/api/datacontracts/{id}/branches/{branch}/changes", DataContractBranchChange)
+    def list_branch_changes(self, id: str, branch: str) -> Page[DataContractBranchChange]:
+        return self._http.get_list(
+            f"/api/datacontracts/{seg(id)}/branches/{seg(branch)}/changes", DataContractBranchChange
+        )
 
     def merge_branch(
         self,
@@ -131,9 +138,9 @@ class DataContractsApi(ApiGroup):
         """Merge a branch. Returns the merge request when ``route`` is ``pull_request``, otherwise ``None``."""
         body = {"version": version, "update_port_versions": update_port_versions, "route": route}
         result = self._http.post_json(
-            f"/api/datacontracts/{id}/branches/{branch}/merge",
+            f"/api/datacontracts/{seg(id)}/branches/{seg(branch)}/merge",
             {key: value for key, value in body.items() if value is not None},
-        )
+        ).data
         return SemanticBranchMergeRequest.model_validate(result) if result else None
 
     def list_branch_test_results(
@@ -149,22 +156,25 @@ class DataContractsApi(ApiGroup):
     ) -> list[TestResults]:
         params = {"server": server, "from": from_, "to": to, "p": page, "size": size}
         return self._http.get_list(
-            f"/api/datacontracts/{id}/branches/{branch}/test-results", TestResults, params=params
+            f"/api/datacontracts/{seg(id)}/branches/{seg(branch)}/test-results", TestResults, params=params
         )
 
     def post_branch_test_results(self, id: str, branch: str, test_results: TestResults | dict[str, Any]) -> None:
-        self._http.post_json(f"/api/datacontracts/{id}/branches/{branch}/test-results", test_results)
+        self._http.post_json(f"/api/datacontracts/{seg(id)}/branches/{seg(branch)}/test-results", test_results)
 
     def test_branch(
         self, id: str, branch: str, *, server: str | None = None, timeout: float | None = None
     ) -> TestResults:
         return self._http.post_model(
-            f"/api/datacontracts/{id}/branches/{branch}/test", TestResults, params={"server": server}, timeout=timeout
+            f"/api/datacontracts/{seg(id)}/branches/{seg(branch)}/test",
+            TestResults,
+            params={"server": server},
+            timeout=timeout,
         )
 
     def generate_branch(
         self, id: str, branch: str, request: GenerateRequest | dict[str, Any], *, timeout: float | None = None
     ) -> GenerateResponse:
         return self._http.post_model(
-            f"/api/datacontracts/{id}/branches/{branch}/generate", GenerateResponse, request, timeout=timeout
+            f"/api/datacontracts/{seg(id)}/branches/{seg(branch)}/generate", GenerateResponse, request, timeout=timeout
         )

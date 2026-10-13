@@ -68,6 +68,14 @@ class EventHandler:
     def on_event(self, event: CloudEvent) -> None:
         """Called for every event, before the typed method."""
 
+    def on_error(self, event: CloudEvent, error: Exception) -> bool:
+        """Called when :meth:`on_event` or a typed method raised.
+
+        Return ``True`` to skip the event and continue with the next one, ``False`` to retry it after the error
+        backoff. The default retries, so no event is lost; override it when a poison event must not block the feed.
+        """
+        return False
+
     def on_data_product_created(self, event: DataProductCreatedEvent) -> None:
         pass
 
@@ -240,7 +248,7 @@ _DISPATCH: dict[str, tuple[str, type[BaseModel]]] = {
 class EventListener:
     """Polls the event feed and dispatches each event to the handler, remembering the last processed event id.
 
-    :meth:`start` blocks and loops until :meth:`stop` is called from another thread.
+    :meth:`start` registers the connector, then blocks and loops until :meth:`stop` is called from another thread.
     """
 
     def __init__(
@@ -263,17 +271,21 @@ class EventListener:
         self.error_backoff = error_backoff
         self._stop = threading.Event()
         self.registration = ConnectorRegistration(client, connector_id, connector_type, connector_version)
+
+    def register(self) -> None:
         self.registration.register()
 
     def start(self) -> None:
         log.info("%s: start polling for events", self.connector_id)
         self._stop.clear()
+        if not self.registration.register_until(self._stop, self.error_backoff):
+            return
         last_event_id = self.get_last_event_id()
         while not self._stop.is_set():
             try:
                 events = self.fetch_events(last_event_id)
                 for event in events:
-                    self.process_event(event)
+                    self.process_event_or_skip(event)
                     last_event_id = event.id
                     self.save_last_event_id(last_event_id)
                 if not events:
@@ -301,6 +313,14 @@ class EventListener:
         events = self.client.events.poll(last_event_id=last_event_id)
         log.debug("Fetched %d events", len(events))
         return events
+
+    def process_event_or_skip(self, event: CloudEvent) -> None:
+        try:
+            self.process_event(event)
+        except Exception as error:
+            if not self.event_handler.on_error(event, error):
+                raise
+            log.warning("Skipping event %s of type %s after error: %s", event.id, event.type, error)
 
     def process_event(self, event: CloudEvent) -> None:
         log.info("Processing event %s of type %s", event.id, event.type)

@@ -27,6 +27,10 @@ class BadRequestError(ApiError):
     """400."""
 
 
+class UnauthorizedError(ApiError):
+    """401: the API key is missing or invalid."""
+
+
 class ForbiddenError(ApiError):
     """403."""
 
@@ -45,6 +49,7 @@ class UnprocessableContentError(ApiError):
 
 _ERRORS_BY_STATUS: dict[int, type[ApiError]] = {
     400: BadRequestError,
+    401: UnauthorizedError,
     403: ForbiddenError,
     404: NotFoundError,
     409: ConflictError,

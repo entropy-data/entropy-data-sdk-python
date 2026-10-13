@@ -57,7 +57,7 @@ client.teams.put("analytics", {"id": "analytics", "name": "Analytics", "type": "
 ```
 
 Errors are raised as `ApiError` subclasses: `NotFoundError` (404), `UnprocessableContentError` (422),
-`ConflictError` (409), `ForbiddenError` (403), `BadRequestError` (400).
+`ConflictError` (409), `ForbiddenError` (403), `UnauthorizedError` (401), `BadRequestError` (400).
 
 ```python
 from entropy_data_sdk import NotFoundError
@@ -68,7 +68,22 @@ except NotFoundError:
     ...
 ```
 
-Paginated lists take a `page` argument. `client.http.iterate_pages(path)` walks every page of a list endpoint.
+List calls return a `Page`, a list with a `has_next` attribute, and take a `page` argument for the next one.
+`client.http.iterate_pages(path)` walks every page of a list endpoint.
+
+Enum fields such as `access.info.status` are typed, but a value the SDK does not know yet is kept as a string-like
+pseudo-member instead of failing validation, so an SDK release never has to precede a new status on the server.
+
+Resource ids are validated and percent-encoded before they become part of a URL. Connection failures are retried
+(`retries=3` by default); a request the server may have received is never repeated.
+
+The typed methods cover every endpoint. For anything else, or to read response headers such as the link to the
+resource in the web application, use the generic layer underneath:
+
+```python
+result = client.http.put_json("/api/teams/analytics", {"id": "analytics", "name": "Analytics", "type": "Team"})
+print(result.location_html)
+```
 
 Building a connector
 ---
@@ -99,8 +114,11 @@ class MyAssetsProvider:
 
 client = EntropyDataClient(api_key="ed_live_...")
 synchronizer = AssetsSynchronizer("my-assets-connector", client, MyAssetsProvider(), delay=timedelta(minutes=30))
-synchronizer.start()  # blocks; calls fetch_assets every 30 minutes, call stop() from another thread to end
+synchronizer.start()  # registers the connector, then calls fetch_assets every 30 minutes until stop() is called
 ```
+
+Assets are only written when the provider's version differs from what Entropy Data has; fields the server adds on
+its own are ignored in that comparison.
 
 ### React to events
 
@@ -130,8 +148,14 @@ listener = EventListener(
     RemoteStateRepository(connector_id, client),
     connector_version="1.0.0",
 )
-listener.start()  # blocks; polls the event feed and remembers the last processed event id
+listener.start()  # registers the connector, then polls the event feed and remembers the last processed event id
 ```
+
+If a handler method raises, the listener calls `on_error(event, error)`. The default returns `False`, which retries the
+same event after a backoff so nothing is lost. Return `True` to skip a poison event and move on.
+
+Both `start()` methods register the connector first and keep retrying the registration while the API is unreachable,
+so a connector can start before Entropy Data is available.
 
 ### State
 

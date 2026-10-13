@@ -47,4 +47,4 @@ class LineageApi(ApiGroup):
         self, *, run_id: str | None = None, job_namespace: str | None = None, job_name: str | None = None
     ) -> dict[str, Any]:
         params = {"runId": run_id, "jobNamespace": job_namespace, "jobName": job_name}
-        return self._http.delete("/api/v1/lineage", params=params)
+        return self._http.delete("/api/v1/lineage", params=params).data

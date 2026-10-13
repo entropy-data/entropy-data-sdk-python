@@ -1,6 +1,7 @@
 """Python SDK for Entropy Data."""
 
 from entropy_data_sdk import models
+from entropy_data_sdk._http import ApiResponse, Page
 from entropy_data_sdk.api.events import CloudEvent
 from entropy_data_sdk.client import EntropyDataClient
 from entropy_data_sdk.connector import (
@@ -21,11 +22,13 @@ from entropy_data_sdk.errors import (
     EntropyDataError,
     ForbiddenError,
     NotFoundError,
+    UnauthorizedError,
     UnprocessableContentError,
 )
 
 __all__ = [
     "ApiError",
+    "ApiResponse",
     "AssetCallback",
     "AssetsProvider",
     "AssetsSynchronizer",
@@ -40,8 +43,10 @@ __all__ = [
     "ForbiddenError",
     "InMemoryStateRepository",
     "NotFoundError",
+    "Page",
     "RemoteStateRepository",
     "StateRepository",
+    "UnauthorizedError",
     "UnprocessableContentError",
     "models",
 ]

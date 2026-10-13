@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import date
 from typing import Any
 
-from entropy_data_sdk._http import YAML
+from entropy_data_sdk._http import YAML, Page, seg
 from entropy_data_sdk.api._base import ApiGroup
 from entropy_data_sdk.models import (
     ApiKeyCreated,
@@ -31,32 +31,32 @@ class OrganizationApi(ApiGroup):
     def get_settings(self) -> OrganizationSettings:
         return self._http.get_model("/api/organization/settings", OrganizationSettings)
 
-    def list_members(self, *, page: int | None = None) -> list[OrganizationMember]:
+    def list_members(self, *, page: int | None = None) -> Page[OrganizationMember]:
         return self._http.get_list("/api/organization/members", OrganizationMember, params={"p": page})
 
     def get_member(self, email_address: str) -> OrganizationMember:
-        return self._http.get_model(f"/api/organization/members/{email_address}", OrganizationMember)
+        return self._http.get_model(f"/api/organization/members/{seg(email_address)}", OrganizationMember)
 
     # Organization git credentials
 
-    def list_git_credentials(self) -> list[GitCredentialResponse]:
+    def list_git_credentials(self) -> Page[GitCredentialResponse]:
         return self._http.get_list("/api/organization/gitcredentials", GitCredentialResponse)
 
     def create_git_credential(self, request: GitCredentialCreateRequest | dict[str, Any]) -> GitCredentialResponse:
         return self._http.post_model("/api/organization/gitcredentials", GitCredentialResponse, request)
 
     def get_git_credential(self, git_credential_id: str) -> GitCredentialResponse:
-        return self._http.get_model(f"/api/organization/gitcredentials/{git_credential_id}", GitCredentialResponse)
+        return self._http.get_model(f"/api/organization/gitcredentials/{seg(git_credential_id)}", GitCredentialResponse)
 
     def update_git_credential(
         self, git_credential_id: str, request: GitCredentialUpdateRequest | dict[str, Any]
     ) -> GitCredentialResponse:
         return self._http.put_model(
-            f"/api/organization/gitcredentials/{git_credential_id}", request, GitCredentialResponse
+            f"/api/organization/gitcredentials/{seg(git_credential_id)}", request, GitCredentialResponse
         )
 
     def delete_git_credential(self, git_credential_id: str) -> None:
-        self._http.delete(f"/api/organization/gitcredentials/{git_credential_id}")
+        self._http.delete(f"/api/organization/gitcredentials/{seg(git_credential_id)}")
 
     # Settings
 
@@ -131,4 +131,4 @@ class OrganizationApi(ApiGroup):
         )
 
     def delete_api_key(self, organization_api_key_id: str) -> None:
-        self._http.delete(f"/api/api-keys/{organization_api_key_id}")
+        self._http.delete(f"/api/api-keys/{seg(organization_api_key_id)}")

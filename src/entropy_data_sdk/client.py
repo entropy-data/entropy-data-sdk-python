@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import httpx
 
-from entropy_data_sdk._http import DEFAULT_TIMEOUT, HttpClient
+from entropy_data_sdk._http import DEFAULT_RETRIES, DEFAULT_TIMEOUT, HttpClient
 from entropy_data_sdk.api import (
     AccessApi,
     AgentIdentitiesApi,
@@ -43,7 +43,8 @@ class EntropyDataClient:
     >>> client = EntropyDataClient(api_key="ed_live_...")
     >>> client.data_products.get("my-data-product")
 
-    Use it as a context manager, or call :meth:`close`, to release the connection pool.
+    Use it as a context manager, or call :meth:`close`, to release the connection pool. ``retries`` applies to
+    connection failures only; a request the server may have received is never repeated.
     """
 
     def __init__(
@@ -53,9 +54,10 @@ class EntropyDataClient:
         *,
         timeout: float | httpx.Timeout = DEFAULT_TIMEOUT,
         verify: bool | str = True,
+        retries: int = DEFAULT_RETRIES,
         transport: httpx.BaseTransport | None = None,
     ):
-        self.http = HttpClient(host, api_key, timeout=timeout, verify=verify, transport=transport)
+        self.http = HttpClient(host, api_key, timeout=timeout, verify=verify, retries=retries, transport=transport)
 
         self.access = AccessApi(self.http)
         self.agent_identities = AgentIdentitiesApi(self.http)

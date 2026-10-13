@@ -9,9 +9,12 @@ The spec is rewritten before it reaches datamodel-code-generator:
 * A ``oneOf`` made of untitled inline objects (``Access.consumer`` is one of four shapes) is
   merged into a single object with every property optional, so callers read
   ``access.consumer.teamId`` instead of narrowing a union of generated variants.
-* The external JSON Schema files for data products and data contracts are replaced by
-  open objects. Those documents are customizable per organization and are passed through
-  as dictionaries, so the SDK never rejects a field it does not know.
+* Component schemas that only point at the external JSON Schema files for data products
+  and data contracts are dropped. Those documents are customizable per organization and
+  are passed through as dictionaries, so the SDK never rejects a field it does not know.
+* Enums become ``TolerantStrEnum`` subclasses: a value the SDK does not know yet is kept
+  as a pseudo-member instead of failing validation, so a connector keeps running when the
+  server starts sending a new status.
 """
 
 from __future__ import annotations
@@ -149,8 +152,16 @@ def replace_external_refs(node):
     return node
 
 
+def is_external_ref(schema) -> bool:
+    return isinstance(schema, dict) and isinstance(schema.get("$ref"), str) and not schema["$ref"].startswith("#")
+
+
 def preprocess(spec: dict) -> dict:
-    spec = replace_external_refs(copy.deepcopy(spec))
+    spec = copy.deepcopy(spec)
+    schemas = spec["components"]["schemas"]
+    for name in [name for name, schema in schemas.items() if is_external_ref(schema)]:
+        del schemas[name]
+    spec = replace_external_refs(spec)
     schemas = spec["components"]["schemas"]
     hoister = Hoister(schemas)
     for name in list(schemas):
@@ -190,7 +201,6 @@ def main() -> int:
             "--field-constraints",
             "--use-double-quotes",
             "--disable-timestamp",
-            "--reuse-model",
             "--formatters",
             "ruff-format",
             "--custom-file-header",
@@ -200,8 +210,40 @@ def main() -> int:
         if result.returncode != 0:
             sys.stderr.write(result.stderr)
             return result.returncode
+    OUTPUT.write_text(make_enums_tolerant(OUTPUT.read_text()))
     print(f"Wrote {OUTPUT.relative_to(ROOT)}")
     return 0
+
+
+TOLERANT_ENUM = '''
+
+class TolerantStrEnum(StrEnum):
+    """A string enum that accepts values it does not know yet.
+
+    The API adds values over time. An unknown value becomes a pseudo-member that compares equal to its string, so
+    parsing never fails and the known members stay typed.
+    """
+
+    @classmethod
+    def _missing_(cls, value):
+        if not isinstance(value, str):
+            return None
+        member = str.__new__(cls, value)
+        member._name_ = value
+        member._value_ = value
+        cls._value2member_map_[value] = member
+        return member
+'''
+
+
+def make_enums_tolerant(source: str) -> str:
+    if "(StrEnum)" not in source:
+        return source
+    source = source.replace("(StrEnum):", "(TolerantStrEnum):")
+    anchor = "\nfrom enum import StrEnum\n"
+    head, _, tail = source.partition(anchor)
+    tail_imports, _, body = tail.partition("\n\n\n")
+    return head + anchor + tail_imports + "\n" + TOLERANT_ENUM + "\n\n" + body
 
 
 if __name__ == "__main__":

@@ -46,4 +46,4 @@ class UsageApi(ApiGroup):
             "dataContractId": data_contract_id,
             "spanId": span_id,
         }
-        return self._http.delete("/api/v1/traces", params=params)
+        return self._http.delete("/api/v1/traces", params=params).data

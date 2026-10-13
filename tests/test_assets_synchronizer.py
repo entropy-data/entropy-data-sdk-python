@@ -54,3 +54,27 @@ def test_assets_are_saved_only_when_changed(api, client):
 
     assert put.call_count == 1
     assert delete.call_count == 1
+
+
+def test_server_side_fields_do_not_count_as_changes(api, client):
+    register(api)
+    api.get("/api/assets/catalog.schema.table").respond(
+        200, json={**ASSET, "assignedTags": ["pii:true"], "info": {**ASSET["info"], "status": "active"}}
+    )
+    put = api.put("/api/assets/catalog.schema.table").respond(200)
+
+    class Provider:
+        def fetch_assets(self, callback):
+            callback.on_asset_updated(models.Asset.model_validate(ASSET))
+            callback.on_asset_updated(models.Asset.model_validate({**ASSET, "info": {"name": "renamed"}}))
+
+    AssetsSynchronizer("unittest", client, Provider()).synchronize_assets()
+
+    assert put.call_count == 1
+    assert b'"name":"renamed"' in put.calls.last.request.content
+
+
+def test_constructor_does_not_touch_the_api(api, client):
+    AssetsSynchronizer("unittest", client, object())
+
+    assert not api.calls

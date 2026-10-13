@@ -9,6 +9,24 @@ from enum import StrEnum
 from datetime import date
 
 
+class TolerantStrEnum(StrEnum):
+    """A string enum that accepts values it does not know yet.
+
+    The API adds values over time. An unknown value becomes a pseudo-member that compares equal to its string, so
+    parsing never fails and the known members stay typed.
+    """
+
+    @classmethod
+    def _missing_(cls, value):
+        if not isinstance(value, str):
+            return None
+        member = str.__new__(cls, value)
+        member._name_ = value
+        member._value_ = value
+        cls._value2member_map_[value] = member
+        return member
+
+
 class ProblemDetail(BaseModel):
     """
     Error response in the [RFC 7807 Problem Details](https://datatracker.ietf.org/doc/html/rfc7807) format, returned with `Content-Type: application/problem+json` for all error responses from `/api/**`. The human-readable, endpoint-specific explanation is in the `detail` field; `title` only carries the standard HTTP status reason phrase. Some statuses extend this base shape — see `ValidationProblemDetail` for request validation 400s.
@@ -34,26 +52,6 @@ class ProblemDetail(BaseModel):
     """
     A URI reference identifying the specific occurrence of the problem; typically the path of the failing request.
     """
-
-
-class DataProduct(BaseModel):
-    """
-    Document validated against schemas/dataproduct-0.0.1.json. Passed through unchanged.
-    """
-
-    model_config = ConfigDict(
-        extra="allow",
-    )
-
-
-class OpenDataProductStandard(BaseModel):
-    """
-    Document validated against schemas/odps-json-schema-v1.0.0.json. Passed through unchanged.
-    """
-
-    model_config = ConfigDict(
-        extra="allow",
-    )
 
 
 class Certification(BaseModel):
@@ -206,16 +204,6 @@ class OrganizationSsoSettings(BaseModel):
     """
     Whether new users from this SSO tenant are auto-joined to the organization.
     """
-
-
-class DataContract(BaseModel):
-    """
-    Document validated against schemas/odcs-json-schema-v3.1.0.json. Passed through unchanged.
-    """
-
-    model_config = ConfigDict(
-        extra="allow",
-    )
 
 
 class GeneratedFile(BaseModel):
@@ -1575,7 +1563,7 @@ class ScimSchemaAttribute(BaseModel):
     """
 
 
-class OrganizationFeaturesAutoApprovePolicy(StrEnum):
+class OrganizationFeaturesAutoApprovePolicy(TolerantStrEnum):
     """
     Organization-wide auto-approval of access requests. Null (the default) approves only requests within the same team or to output ports that opt in via `autoApprove`; `always` approves every access request automatically.
     """
@@ -1583,7 +1571,7 @@ class OrganizationFeaturesAutoApprovePolicy(StrEnum):
     always = "always"
 
 
-class OrganizationFeaturesAccessProvisioningPolicy(StrEnum):
+class OrganizationFeaturesAccessProvisioningPolicy(TolerantStrEnum):
     """
     When access to an output port counts as granted for the consumer. Null (the default) means an approved, active access is access. `required` means access stays pending, and "Open in" is withheld, until the grant has been reported as provisioned via the provisioning endpoints. Switching to `required` records every access active at that moment as provisioned.
     """
@@ -1602,7 +1590,7 @@ class ValidationProblemDetailViolation(BaseModel):
     """
 
 
-class ApiKeyCreatedScope(StrEnum):
+class ApiKeyCreatedScope(TolerantStrEnum):
     """
     The scope of the API key.
     """
@@ -1633,7 +1621,7 @@ class ScimMappingConfigurationScimGroupDefaults(BaseModel):
     """
 
 
-class ScimMappingConfigurationScimGroupMappingType(StrEnum):
+class ScimMappingConfigurationScimGroupMappingType(TolerantStrEnum):
     """
     The mapping type
     """
@@ -1643,7 +1631,7 @@ class ScimMappingConfigurationScimGroupMappingType(StrEnum):
     teamMember = "teamMember"
 
 
-class DataUsageAgreementInfoStatus(StrEnum):
+class DataUsageAgreementInfoStatus(TolerantStrEnum):
     """
     Approval workflow status of the usage agreement. Managed by Entropy Data
     """
@@ -1675,6 +1663,16 @@ class DataUsageAgreementConsumer(BaseModel):
     agentId: str | None = Field(None, examples=["churn-risk-scorer"])
 
 
+class AccessInfoStatus(TolerantStrEnum):
+    """
+    Approval workflow status of the usage agreement. Managed by Entropy Data
+    """
+
+    requested = "requested"
+    approved = "approved"
+    rejected = "rejected"
+
+
 class AccessProvider(BaseModel):
     dataProductId: str = Field(..., examples=["snowflake_orders_v2"])
     """
@@ -1698,11 +1696,14 @@ class AccessProvider(BaseModel):
     """
 
 
-class AccessConsumer(DataUsageAgreementConsumer):
-    pass
+class AccessConsumer(BaseModel):
+    dataProductId: str | None = Field(None, examples=["user_profiles"])
+    teamId: str | None = Field(None, examples=["marketing-team"])
+    userId: str | None = Field(None, examples=["user-123"])
+    agentId: str | None = Field(None, examples=["churn-risk-scorer"])
 
 
-class PolicyStatus(StrEnum):
+class PolicyStatus(TolerantStrEnum):
     """
     The lifecycle status of the policy
     """
@@ -1713,7 +1714,7 @@ class PolicyStatus(StrEnum):
     Deprecated = "Deprecated"
 
 
-class DataProductBuilderSupportedAgent(StrEnum):
+class DataProductBuilderSupportedAgent(TolerantStrEnum):
     claude_code = "claude_code"
     openai_codex = "openai_codex"
     github_copilot_cli = "github_copilot_cli"
@@ -1724,7 +1725,7 @@ class DataProductBuilderUsageInstructionsByStatus(BaseModel):
     instructions: str
 
 
-class AgentIdentityStatus(StrEnum):
+class AgentIdentityStatus(TolerantStrEnum):
     """
     A disabled agent keeps its record, keys and agreements, but its keys don't work.
     """
@@ -1741,7 +1742,7 @@ class AgentIdentityLinkedIdentity(BaseModel):
     id: str = Field(..., examples=["SVC_CHURN_SCORER"])
 
 
-class AgentConnectionRequestType(StrEnum):
+class AgentConnectionRequestType(TolerantStrEnum):
     postgres = "postgres"
     mysql = "mysql"
     mariadb = "mariadb"
@@ -1752,7 +1753,7 @@ class AgentConnectionRequestType(StrEnum):
     snowflake = "snowflake"
 
 
-class TeamType(StrEnum):
+class TeamType(TolerantStrEnum):
     """
     The type of the team. Only a "Team" can own data products, source systems, data contracts, and definitions.
     """
@@ -1776,7 +1777,7 @@ class TeamMember(BaseModel):
     """
 
 
-class NotificationChannelType(StrEnum):
+class NotificationChannelType(TolerantStrEnum):
     """
     The type of notification channel
     """
@@ -1786,7 +1787,7 @@ class NotificationChannelType(StrEnum):
     googlechat = "googlechat"
 
 
-class GitCredentialCreateRequestGitConnectionType(StrEnum):
+class GitCredentialCreateRequestGitConnectionType(TolerantStrEnum):
     """
     The type of git provider
     """
@@ -1797,7 +1798,7 @@ class GitCredentialCreateRequestGitConnectionType(StrEnum):
     azuredevops = "azuredevops"
 
 
-class GitCredentialCreateRequestTokenType(StrEnum):
+class GitCredentialCreateRequestTokenType(TolerantStrEnum):
     """
     The authentication method used for the token. Defaults to `authenticationToken` if not provided.
     - `authenticationToken` — A Personal Access Token (PAT), OAuth token, or Bitbucket Cloud repository/project/workspace Access Token, sent as a Bearer. No username is required. Use this for GitHub, GitLab, Azure DevOps, and Bitbucket Access Tokens.
@@ -1809,7 +1810,41 @@ class GitCredentialCreateRequestTokenType(StrEnum):
     apiToken = "apiToken"
 
 
-class GitCredentialResponseTokenType(StrEnum):
+class GitCredentialUpdateRequestGitConnectionType(TolerantStrEnum):
+    """
+    The type of git provider
+    """
+
+    github = "github"
+    gitlab = "gitlab"
+    bitbucket = "bitbucket"
+    azuredevops = "azuredevops"
+
+
+class GitCredentialUpdateRequestTokenType(TolerantStrEnum):
+    """
+    The authentication method used for the token. Defaults to `authenticationToken` if not provided.
+    - `authenticationToken` — A Personal Access Token (PAT), OAuth token, or Bitbucket Cloud repository/project/workspace Access Token, sent as a Bearer. No username is required. Use this for GitHub, GitLab, Azure DevOps, and Bitbucket Access Tokens.
+    - `apiToken` — Basic authentication for Bitbucket Cloud, used with an Atlassian API token (recommended; username is the Atlassian account email) or with a Bitbucket App Password (deprecated by Atlassian; username is the workspace username). When using this type, the `username` field is required.
+
+    """
+
+    authenticationToken = "authenticationToken"
+    apiToken = "apiToken"
+
+
+class GitCredentialResponseGitConnectionType(TolerantStrEnum):
+    """
+    The type of git provider
+    """
+
+    github = "github"
+    gitlab = "gitlab"
+    bitbucket = "bitbucket"
+    azuredevops = "azuredevops"
+
+
+class GitCredentialResponseTokenType(TolerantStrEnum):
     """
     The authentication method used for the token.
     - `authenticationToken` — A Personal Access Token (PAT), OAuth token, or Bitbucket Cloud Access Token sent as a Bearer. No username is required.
@@ -1821,7 +1856,7 @@ class GitCredentialResponseTokenType(StrEnum):
     apiToken = "apiToken"
 
 
-class GenerateRequestType(StrEnum):
+class GenerateRequestType(TolerantStrEnum):
     """
     The type of code to generate. Supported values:
     - `sql-select` - SQL SELECT statements
@@ -1843,7 +1878,7 @@ class GenerateRequestType(StrEnum):
     custom = "custom"
 
 
-class GenerateResponseGenerationType(StrEnum):
+class GenerateResponseGenerationType(TolerantStrEnum):
     """
     The type of code that was generated.
     """
@@ -1857,7 +1892,7 @@ class GenerateResponseGenerationType(StrEnum):
     custom = "custom"
 
 
-class GitImportRequestGitConnectionType(StrEnum):
+class GitImportRequestGitConnectionType(TolerantStrEnum):
     """
     The type of git provider. Required when `gitCredentialExternalId` is not provided. When both are provided, the value is validated against the resolved credential's type.
     """
@@ -1868,7 +1903,7 @@ class GitImportRequestGitConnectionType(StrEnum):
     azuredevops = "azuredevops"
 
 
-class GitConnectionResponseGitConnectionType(StrEnum):
+class GitConnectionResponseGitConnectionType(TolerantStrEnum):
     """
     The type of git provider.
     """
@@ -1879,7 +1914,7 @@ class GitConnectionResponseGitConnectionType(StrEnum):
     azuredevops = "azuredevops"
 
 
-class GitConnectionResponseSyncStatus(StrEnum):
+class GitConnectionResponseSyncStatus(TolerantStrEnum):
     """
     The sync status between the data contract and the Git file.
     """
@@ -1889,6 +1924,17 @@ class GitConnectionResponseSyncStatus(StrEnum):
     REMOTE_IS_NEWER = "REMOTE_IS_NEWER"
     CONFLICT = "CONFLICT"
     INITIAL_SYNC = "INITIAL_SYNC"
+
+
+class GitConnectionRequestGitConnectionType(TolerantStrEnum):
+    """
+    The type of git provider. Required when `gitCredentialExternalId` is not provided. When both are provided, the value is validated against the resolved credential's type.
+    """
+
+    github = "github"
+    gitlab = "gitlab"
+    bitbucket = "bitbucket"
+    azuredevops = "azuredevops"
 
 
 class AssetInfo(BaseModel):
@@ -1964,7 +2010,7 @@ class TagInfo(BaseModel):
     """
 
 
-class IntegrationSource(StrEnum):
+class IntegrationSource(TolerantStrEnum):
     """
     The source platform this integration ingests from.
     """
@@ -1993,7 +2039,7 @@ class UnityCatalogMetadataIntegrationCredential(BaseModel):
     databricksWarehouseId: str | None = None
 
 
-class UnityCatalogMetadataStatusLastRunOutcome(StrEnum):
+class UnityCatalogMetadataStatusLastRunOutcome(TolerantStrEnum):
     """
     `completed` wrote every event; `continued`/`waiting` left events for a later run; `paused` was refused by the platform for a while (a rate limit); `failed` and `no_session` gave their events up, the latter because the credential was refused; `stale_heartbeat` and `disabled` stopped early.
     """
@@ -2031,7 +2077,7 @@ class UnityCatalogMetadataIntegrationRequestCredential(BaseModel):
     """
 
 
-class UnityCatalogMetadataTableState(StrEnum):
+class UnityCatalogMetadataTableState(TolerantStrEnum):
     in_sync = "in_sync"
     unresolved = "unresolved"
     failed = "failed"
@@ -2046,14 +2092,14 @@ class IngestIntegrationRequestCredential(BaseModel):
     details: dict[str, Any] | None = None
 
 
-class IngestionRunStatus(StrEnum):
+class IngestionRunStatus(TolerantStrEnum):
     RUNNING = "RUNNING"
     SUCCESS = "SUCCESS"
     FAILED = "FAILED"
     CANCELLED = "CANCELLED"
 
 
-class IntegrationConflictStatus(StrEnum):
+class IntegrationConflictStatus(TolerantStrEnum):
     already_running = "already_running"
 
 
@@ -2095,7 +2141,7 @@ class ConnectorHealth(BaseModel):
     """
 
 
-class TestResultsResult(StrEnum):
+class TestResultsResult(TolerantStrEnum):
     """
     The result of the test run.
     """
@@ -2107,7 +2153,7 @@ class TestResultsResult(StrEnum):
     unknown = "unknown"
 
 
-class TestResultsCheckResult(StrEnum):
+class TestResultsCheckResult(TolerantStrEnum):
     """
     The result of the check. `skipped` means the engine did not execute it.
     """
@@ -2135,7 +2181,7 @@ class TestResultsLog(BaseModel):
     timestamp: AwareDatetime | None = Field(None, examples=["2024-07-03 10:46:29.083871+00:00"])
 
 
-class SemanticNamespaceKind(StrEnum):
+class SemanticNamespaceKind(TolerantStrEnum):
     """
     `branch` marks the hidden working copy a branch is. Branches are excluded from this
     listing, from search, from the SPARQL dataset and from the marketplace; they are reachable only
@@ -2147,12 +2193,12 @@ class SemanticNamespaceKind(StrEnum):
     branch = "branch"
 
 
-class SemanticBranchMergeRequestType(StrEnum):
+class SemanticBranchMergeRequestType(TolerantStrEnum):
     pull_request = "pull_request"
     merge_request = "merge_request"
 
 
-class SemanticBranchMergeRequestStatus(StrEnum):
+class SemanticBranchMergeRequestStatus(TolerantStrEnum):
     """
     As the provider reports it; absent when the provider was not asked.
     """
@@ -2162,7 +2208,7 @@ class SemanticBranchMergeRequestStatus(StrEnum):
     closed = "closed"
 
 
-class SemanticBranchMergeRequestMergeability(StrEnum):
+class SemanticBranchMergeRequestMergeability(TolerantStrEnum):
     """
     Whether the provider would merge the request now. `blocked` means clean but held by a rule (review, pipeline, policy); `unknown` while the provider is still computing it.
     """
@@ -2173,13 +2219,13 @@ class SemanticBranchMergeRequestMergeability(StrEnum):
     unknown = "unknown"
 
 
-class SemanticBranchConflictElementType(StrEnum):
+class SemanticBranchConflictElementType(TolerantStrEnum):
     concept = "concept"
     relationship = "relationship"
     namespace = "namespace"
 
 
-class SemanticBranchChangeElementType(StrEnum):
+class SemanticBranchChangeElementType(TolerantStrEnum):
     entity = "entity"
     metric = "metric"
     group = "group"
@@ -2188,13 +2234,13 @@ class SemanticBranchChangeElementType(StrEnum):
     namespace = "namespace"
 
 
-class SemanticBranchChangeOp(StrEnum):
+class SemanticBranchChangeOp(TolerantStrEnum):
     add = "add"
     modify = "modify"
     remove = "remove"
 
 
-class SemanticBranchChangeImpact(StrEnum):
+class SemanticBranchChangeImpact(TolerantStrEnum):
     """
     How consequential the change is. `structural` alters what the graph means; `descriptive` alters how it reads; `cosmetic` is labels only.
     """
@@ -2204,13 +2250,19 @@ class SemanticBranchChangeImpact(StrEnum):
     cosmetic = "cosmetic"
 
 
-class SemanticBranchNestedChangeImpact(StrEnum):
+class SemanticBranchNestedChangeOp(TolerantStrEnum):
+    add = "add"
+    modify = "modify"
+    remove = "remove"
+
+
+class SemanticBranchNestedChangeImpact(TolerantStrEnum):
     structural = "structural"
     descriptive = "descriptive"
     cosmetic = "cosmetic"
 
 
-class SemanticConceptKind(StrEnum):
+class SemanticConceptKind(TolerantStrEnum):
     """
     The kind of concept.
     """
@@ -2244,7 +2296,7 @@ class OtelTracesRequestResourceSpanScopeSpanScope(BaseModel):
     """
 
 
-class OpenLineageRunEventEventType(StrEnum):
+class OpenLineageRunEventEventType(TolerantStrEnum):
     """
     The type of lifecycle event.
     """
@@ -2301,7 +2353,7 @@ class OpenLineageDatasetFacets(BaseModel):
     entropy_data: EntropyDataDatasetFacet | None = None
 
 
-class TeamRolesSettingsMode(StrEnum):
+class TeamRolesSettingsMode(TolerantStrEnum):
     """
     `default` derives team permissions from the built-in default roles; `custom-team-roles` derives them from the organization's custom role catalog (`team-roles`).
     """
@@ -2310,7 +2362,7 @@ class TeamRolesSettingsMode(StrEnum):
     custom_team_roles = "custom-team-roles"
 
 
-class TeamRolePermission(StrEnum):
+class TeamRolePermission(TolerantStrEnum):
     DATAPRODUCT_ADD = "DATAPRODUCT_ADD"
     DATAPRODUCT_EDIT = "DATAPRODUCT_EDIT"
     DATAPRODUCT_DELETE = "DATAPRODUCT_DELETE"
@@ -2373,7 +2425,7 @@ class TeamRolePermission(StrEnum):
     CHANGE_REQUEST_APPROVE = "CHANGE_REQUEST_APPROVE"
 
 
-class DataProductTypeBehavior(StrEnum):
+class DataProductTypeBehavior(TolerantStrEnum):
     """
     The behavior derived from the type, ignored on input.
     """
@@ -2394,7 +2446,7 @@ class EmailTemplateSettingsVariable(BaseModel):
     """
 
 
-class OrganizationMemberRole(StrEnum):
+class OrganizationMemberRole(TolerantStrEnum):
     """
     The role of the user of the organization.
     """
@@ -2403,7 +2455,7 @@ class OrganizationMemberRole(StrEnum):
     Owner = "Owner"
 
 
-class DataContractBranchVersionState(StrEnum):
+class DataContractBranchVersionState(TolerantStrEnum):
     """
     Whether the branch can land with its version as it is (`ready`), needs a version passed to merge (`needsBump`), or changed the major version and cannot land from a branch (`majorDiffers`).
     """
@@ -2413,7 +2465,7 @@ class DataContractBranchVersionState(StrEnum):
     majorDiffers = "majorDiffers"
 
 
-class DataContractBranchSuggestedStep(StrEnum):
+class DataContractBranchSuggestedStep(TolerantStrEnum):
     """
     The step the branch's changes call for. Wording and metadata alone are a `patch`; added or restructured elements a `minor`; a removed or retyped column, table or server a `major`, which a branch cannot carry.
     """
@@ -2423,7 +2475,7 @@ class DataContractBranchSuggestedStep(StrEnum):
     major = "major"
 
 
-class DataContractBranchConflictElementType(StrEnum):
+class DataContractBranchConflictElementType(TolerantStrEnum):
     field = "field"
     schema = "schema"
     property = "property"
@@ -2437,11 +2489,37 @@ class DataContractBranchConflictElementType(StrEnum):
     tag = "tag"
 
 
-class DataContractBranchConflictReason(StrEnum):
+class DataContractBranchConflictReason(TolerantStrEnum):
     bothChanged = "bothChanged"
     changedHereRemovedThere = "changedHereRemovedThere"
     removedHereChangedThere = "removedHereChangedThere"
     bothAdded = "bothAdded"
+
+
+class DataContractBranchChangeElementType(TolerantStrEnum):
+    field = "field"
+    schema = "schema"
+    property = "property"
+    server = "server"
+    role = "role"
+    sla = "sla"
+    member = "member"
+    support = "support"
+    customProperty = "customProperty"
+    definition = "definition"
+    tag = "tag"
+
+
+class DataContractBranchChangeOp(TolerantStrEnum):
+    add = "add"
+    modify = "modify"
+    remove = "remove"
+
+
+class DataContractBranchChangeImpact(TolerantStrEnum):
+    structural = "structural"
+    descriptive = "descriptive"
+    cosmetic = "cosmetic"
 
 
 class AccessProvisioningStartedReportCustomProperty(BaseModel):
@@ -2449,19 +2527,22 @@ class AccessProvisioningStartedReportCustomProperty(BaseModel):
     value: str | None = Field(None, examples=["g-9f2c41ab"])
 
 
-class AccessProvisioningSucceededReportCustomProperty(AccessProvisioningStartedReportCustomProperty):
-    pass
+class AccessProvisioningSucceededReportCustomProperty(BaseModel):
+    property: str | None = Field(None, examples=["grantId"])
+    value: str | None = Field(None, examples=["g-9f2c41ab"])
 
 
-class AccessProvisioningFailedReportCustomProperty(AccessProvisioningStartedReportCustomProperty):
-    pass
+class AccessProvisioningFailedReportCustomProperty(BaseModel):
+    property: str | None = Field(None, examples=["grantId"])
+    value: str | None = Field(None, examples=["g-9f2c41ab"])
 
 
-class AccessDeprovisioningSucceededReportCustomProperty(AccessProvisioningStartedReportCustomProperty):
-    pass
+class AccessDeprovisioningSucceededReportCustomProperty(BaseModel):
+    property: str | None = Field(None, examples=["grantId"])
+    value: str | None = Field(None, examples=["g-9f2c41ab"])
 
 
-class AccessProvisioningStatus(StrEnum):
+class AccessProvisioningStatus(TolerantStrEnum):
     provisioning = "provisioning"
     provisioned = "provisioned"
     provisioning_failed = "provisioning-failed"
@@ -2470,11 +2551,12 @@ class AccessProvisioningStatus(StrEnum):
     deprovisioning_failed = "deprovisioning-failed"
 
 
-class AccessProvisioningCustomProperty(AccessProvisioningStartedReportCustomProperty):
-    pass
+class AccessProvisioningCustomProperty(BaseModel):
+    property: str | None = Field(None, examples=["grantId"])
+    value: str | None = Field(None, examples=["g-9f2c41ab"])
 
 
-class AccessProvisioningReportStatus(StrEnum):
+class AccessProvisioningReportStatus(TolerantStrEnum):
     """
     Required on PUT, ignored by the transition endpoints (the URL determines the status).
     """
@@ -2487,11 +2569,12 @@ class AccessProvisioningReportStatus(StrEnum):
     deprovisioning_failed = "deprovisioning-failed"
 
 
-class AccessProvisioningReportCustomProperty(AccessProvisioningStartedReportCustomProperty):
-    pass
+class AccessProvisioningReportCustomProperty(BaseModel):
+    property: str | None = Field(None, examples=["grantId"])
+    value: str | None = Field(None, examples=["g-9f2c41ab"])
 
 
-class ScimPatchRequestOperationOp(StrEnum):
+class ScimPatchRequestOperationOp(TolerantStrEnum):
     """
     The operation to perform (add, replace, remove).
     """
@@ -2516,13 +2599,13 @@ class ScimGroupMember(BaseModel):
     """
 
 
-class CopyAccessCandidateConsumerType(StrEnum):
+class CopyAccessCandidateConsumerType(TolerantStrEnum):
     dataproduct = "dataproduct"
     team = "team"
     user = "user"
 
 
-class CopyAccessCandidateReason(StrEnum):
+class CopyAccessCandidateReason(TolerantStrEnum):
     """
     Why this one cannot be copied.
     """
@@ -2850,7 +2933,7 @@ class GitCredentialCreateRequest(BaseModel):
 
 
 class GitCredentialUpdateRequest(BaseModel):
-    gitConnectionType: GitCredentialCreateRequestGitConnectionType
+    gitConnectionType: GitCredentialUpdateRequestGitConnectionType
     authenticationToken: str | None = Field(None, examples=["ghp_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"])
     """
     The authentication token. If omitted or blank, the existing token is preserved.
@@ -2867,7 +2950,7 @@ class GitCredentialUpdateRequest(BaseModel):
     """
     A display name for the token
     """
-    tokenType: GitCredentialCreateRequestTokenType | None = None
+    tokenType: GitCredentialUpdateRequestTokenType | None = None
     username: str | None = Field(None, examples=["jane.doe@example.com"])
     """
     The username for Basic authentication. Required when `gitConnectionType` is `bitbucket` and `tokenType` is `apiToken`. Use your Atlassian account email when authenticating with an API token, or your Bitbucket workspace username when authenticating with an App Password.
@@ -2922,7 +3005,7 @@ class GitCredentialResponse(BaseModel):
     This is the only value accepted as `gitCredentialExternalId` when creating a git connection — the credential `id` (UUID) and `tokenName` are not. If this is `null` and you want to address the credential explicitly, assign an `externalId` first via `PUT /api/organization/gitcredentials/{id}` (or the team/user equivalent).
 
     """
-    gitConnectionType: GitCredentialCreateRequestGitConnectionType | None = None
+    gitConnectionType: GitCredentialResponseGitConnectionType | None = None
     host: str | None = Field(None, examples=["github.com"])
     """
     The git host URL
@@ -3086,7 +3169,7 @@ class GitConnectionRequest(BaseModel):
     This must be the credential's `externalId` — not its `id` (UUID) and not its `tokenName`/Connection Name. Credentials created through the web UI have no `externalId`; to reference one explicitly, first assign an `externalId` via `PUT /api/organization/gitcredentials/{id}` (or the team/user equivalent). Otherwise omit this field and set `gitConnectionType` (and `host`) to resolve the credential implicitly.
 
     """
-    gitConnectionType: GitImportRequestGitConnectionType | None = None
+    gitConnectionType: GitConnectionRequestGitConnectionType | None = None
     host: str | None = Field(None, examples=["https://gitlab.example.com"])
     """
     The host of a self-hosted git provider instance. Required for self-hosted providers, omit for SaaS. When `gitCredentialExternalId` is provided, validated against the resolved credential's host.
@@ -3397,7 +3480,7 @@ class SemanticBranchConflict(BaseModel):
 class SemanticBranchNestedChange(BaseModel):
     external_id: str | None = None
     name: str | None = None
-    op: SemanticBranchChangeOp | None = None
+    op: SemanticBranchNestedChangeOp | None = None
     impact: SemanticBranchNestedChangeImpact | None = None
     fields: list[SemanticBranchFieldChange] | None = None
 
@@ -3646,14 +3729,14 @@ class DataContractBranchChange(BaseModel):
     """
 
     key: str | None = Field(None, examples=["property:ORDERS.ORDER_STATUS"])
-    element_type: DataContractBranchConflictElementType | None = None
+    element_type: DataContractBranchChangeElementType | None = None
     path: str | None = Field(None, examples=["ORDERS.ORDER_STATUS"])
     """
     The element's path; a property's is `SCHEMA.PROPERTY[.NESTED]`.
     """
     name: str | None = Field(None, examples=["ORDER_STATUS"])
-    op: SemanticBranchChangeOp | None = None
-    impact: SemanticBranchNestedChangeImpact | None = None
+    op: DataContractBranchChangeOp | None = None
+    impact: DataContractBranchChangeImpact | None = None
     fields: list[SemanticBranchFieldChange] | None = None
     """
     Per-field before/after pairs of a modified element; empty for an addition or a removal.
@@ -4075,8 +4158,32 @@ class DataUsageAgreementInfo(BaseModel):
     """
 
 
-class AccessInfo(DataUsageAgreementInfo):
-    pass
+class AccessInfo(BaseModel):
+    purpose: str = Field(..., examples=["Use orders to calculate payment amount"])
+    """
+    The purpose describes the reason and the context on why the consumer wants to consume the data.
+    """
+    individualAgreements: str | None = Field(None, examples=["Free for the first three months."])
+    """
+    The individual agreements describe any individual agreements between the provider and the consumer.
+    """
+    status: AccessInfoStatus | None = None
+    active: bool | None = Field(None, examples=[True])
+    """
+    The data usage agreement is active if it is approved and the current date is between start and end date. Managed by Entropy Data
+    """
+    startDate: date | None = Field(None, examples=["2023-01-01"])
+    """
+    The start date, when an approved data usage agreement becomes active. If omitted, it defaults to the current date (UTC) on create and keeps its existing value on update. An approved agreement only becomes active once its start date is reached.
+    """
+    endDate: date | None = Field(None, examples=["2023-01-01"])
+    """
+    The end date, when an approved and active data usage agreement becomes inactive again.
+    """
+    nextReassessmentDate: date | None = Field(None, examples=["2023-01-01"])
+    """
+    The next reassessment date, when the data usage agreement needs to be reassessed.
+    """
 
 
 class UnityCatalogMetadataStatusLastRun(BaseModel):

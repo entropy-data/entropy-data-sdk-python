@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from entropy_data_sdk._http import seg
 from entropy_data_sdk.api._base import ApiGroup
 
 
@@ -16,7 +17,7 @@ class SchemasApi(ApiGroup):
 
 
 def _schema_path(standard: str, version: str | None, custom: bool) -> str:
-    name = standard if version is None else f"{standard}-{version}"
+    name = standard if version is None else f"{standard}-{seg(version)}"
     if custom:
         name += "-custom"
-    return f"/api/schemas/{name}.schema.json"
+    return f"/api/schemas/{seg(name)}.schema.json"

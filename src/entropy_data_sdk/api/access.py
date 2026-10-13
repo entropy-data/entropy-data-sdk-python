@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from entropy_data_sdk._http import seg
 from entropy_data_sdk.api._base import ApiGroup
 from entropy_data_sdk.models import (
     Access,
@@ -36,68 +37,72 @@ class AccessApi(ApiGroup):
         return self._http.get_list("/api/access", Access, params=params)
 
     def get(self, id: str) -> Access:
-        return self._http.get_model(f"/api/access/{id}", Access)
+        return self._http.get_model(f"/api/access/{seg(id)}", Access)
 
     def put(self, id: str, access: Access | dict[str, Any]) -> None:
-        self._http.put_json(f"/api/access/{id}", access)
+        self._http.put_json(f"/api/access/{seg(id)}", access)
 
     def delete(self, id: str) -> None:
-        self._http.delete(f"/api/access/{id}")
+        self._http.delete(f"/api/access/{seg(id)}")
 
     def approve(self, id: str) -> None:
-        self._http.post_json(f"/api/access/{id}/approve")
+        self._http.post_json(f"/api/access/{seg(id)}/approve")
 
     def reject(self, id: str) -> None:
-        self._http.post_json(f"/api/access/{id}/reject")
+        self._http.post_json(f"/api/access/{seg(id)}/reject")
 
     def cancel(self, id: str) -> None:
-        self._http.post_json(f"/api/access/{id}/cancel")
+        self._http.post_json(f"/api/access/{seg(id)}/cancel")
 
     # Provisioning reports
 
     def get_provisioning(self, id: str) -> AccessProvisioning:
-        return self._http.get_model(f"/api/access/{id}/provisioning", AccessProvisioning)
+        return self._http.get_model(f"/api/access/{seg(id)}/provisioning", AccessProvisioning)
 
     def put_provisioning(self, id: str, report: AccessProvisioningReport | dict[str, Any]) -> AccessProvisioning:
-        return self._http.put_model(f"/api/access/{id}/provisioning", report, AccessProvisioning)
+        return self._http.put_model(f"/api/access/{seg(id)}/provisioning", report, AccessProvisioning)
 
     def report_provisioning_started(
         self, id: str, report: AccessProvisioningStartedReport | dict[str, Any] | None = None
     ) -> AccessProvisioning:
         return self._http.post_model(
-            f"/api/access/{id}/provisioning/provisioning-started", AccessProvisioning, report or {}
+            f"/api/access/{seg(id)}/provisioning/provisioning-started", AccessProvisioning, report or {}
         )
 
     def report_provisioning_succeeded(
         self, id: str, report: AccessProvisioningSucceededReport | dict[str, Any] | None = None
     ) -> AccessProvisioning:
         return self._http.post_model(
-            f"/api/access/{id}/provisioning/provisioning-succeeded", AccessProvisioning, report or {}
+            f"/api/access/{seg(id)}/provisioning/provisioning-succeeded", AccessProvisioning, report or {}
         )
 
     def report_provisioning_failed(
         self, id: str, report: AccessProvisioningFailedReport | dict[str, Any]
     ) -> AccessProvisioning:
-        return self._http.post_model(f"/api/access/{id}/provisioning/provisioning-failed", AccessProvisioning, report)
+        return self._http.post_model(
+            f"/api/access/{seg(id)}/provisioning/provisioning-failed", AccessProvisioning, report
+        )
 
     def report_deprovisioning_started(
         self, id: str, report: AccessProvisioningStartedReport | dict[str, Any] | None = None
     ) -> AccessProvisioning:
         return self._http.post_model(
-            f"/api/access/{id}/provisioning/deprovisioning-started", AccessProvisioning, report or {}
+            f"/api/access/{seg(id)}/provisioning/deprovisioning-started", AccessProvisioning, report or {}
         )
 
     def report_deprovisioning_succeeded(
         self, id: str, report: AccessDeprovisioningSucceededReport | dict[str, Any] | None = None
     ) -> AccessProvisioning:
         return self._http.post_model(
-            f"/api/access/{id}/provisioning/deprovisioning-succeeded", AccessProvisioning, report or {}
+            f"/api/access/{seg(id)}/provisioning/deprovisioning-succeeded", AccessProvisioning, report or {}
         )
 
     def report_deprovisioning_failed(
         self, id: str, report: AccessProvisioningFailedReport | dict[str, Any]
     ) -> AccessProvisioning:
-        return self._http.post_model(f"/api/access/{id}/provisioning/deprovisioning-failed", AccessProvisioning, report)
+        return self._http.post_model(
+            f"/api/access/{seg(id)}/provisioning/deprovisioning-failed", AccessProvisioning, report
+        )
 
     # Copying access between output ports
 
@@ -105,7 +110,7 @@ class AccessApi(ApiGroup):
         self, data_product_id: str, output_port_id: str, *, source_output_port_id: str
     ) -> CopyAccessPreview:
         return self._http.get_model(
-            f"/api/dataproducts/{data_product_id}/outputports/{output_port_id}/copy-access",
+            f"/api/dataproducts/{seg(data_product_id)}/outputports/{seg(output_port_id)}/copy-access",
             CopyAccessPreview,
             params={"sourceOutputPortId": source_output_port_id},
         )
@@ -121,11 +126,11 @@ class AccessApi(ApiGroup):
     ) -> CopyAccessResponse:
         body = {"sourceOutputPortId": source_output_port_id, "access": access, "notifyConsumers": notify_consumers}
         return self._http.post_model(
-            f"/api/dataproducts/{data_product_id}/outputports/{output_port_id}/copy-access",
+            f"/api/dataproducts/{seg(data_product_id)}/outputports/{seg(output_port_id)}/copy-access",
             CopyAccessResponse,
             {key: value for key, value in body.items() if value is not None},
         )
 
     def evaluate(self, request: dict[str, Any]) -> dict[str, Any]:
         """Evaluate an access decision for ``{"subject": ..., "resource": ..., "action": ...}``."""
-        return self._http.post_json("/api/access/evaluation", request)
+        return self._http.post_json("/api/access/evaluation", request).data

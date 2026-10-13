@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import logging
+import threading
+from datetime import timedelta
 
 from entropy_data_sdk.client import EntropyDataClient
 from entropy_data_sdk.errors import NotFoundError
@@ -43,6 +45,17 @@ class ConnectorRegistration:
         log.info("Registering connector %s", self.id)
         self.client.connectors.put(self.id, connector)
         return connector
+
+    def register_until(self, stop: threading.Event, backoff: timedelta) -> bool:
+        """Retry :meth:`register` until it succeeds or ``stop`` is set. Returns whether it succeeded."""
+        while not stop.is_set():
+            try:
+                self.register()
+                return True
+            except Exception:
+                log.exception("Failed to register connector %s, next attempt in %s", self.id, backoff)
+                stop.wait(backoff.total_seconds())
+        return False
 
     def delete(self) -> None:
         log.info("Deleting connector %s", self.id)

@@ -92,10 +92,114 @@ def test_registration_keeps_existing_description(api, client):
     )
     put = api.put("/api/connectors/unittest").respond(200)
 
-    EventListener("unittest", "event-listener", client, EventHandler(), InMemoryStateRepository("unittest"), "2.0")
+    EventListener(
+        "unittest", "event-listener", client, EventHandler(), InMemoryStateRepository("unittest"), "2.0"
+    ).register()
 
     body = put.calls.last.request.content
     assert b'"type":"event-listener"' in body
     assert b'"description":"kept"' in body
     assert b'"connectorVersion":"2.0"' in body
     assert b'"state":{"lastEventId":"x"}' in body
+
+
+def test_start_retries_registration_until_the_api_answers(api, client):
+    import httpx
+
+    api.get("/api/connectors/unittest").mock(side_effect=[httpx.ConnectError("down"), httpx.Response(404)])
+    put = api.put("/api/connectors/unittest").respond(200)
+    feed = api.get("/api/events").respond(200, json=[])
+    listener = EventListener(
+        "unittest",
+        "event-listener",
+        client,
+        EventHandler(),
+        InMemoryStateRepository("unittest"),
+        poll_interval=timedelta(milliseconds=10),
+        error_backoff=timedelta(milliseconds=10),
+    )
+    thread = threading.Thread(target=listener.start)
+    thread.start()
+    try:
+        for _ in range(200):
+            if feed.called:
+                break
+            threading.Event().wait(0.01)
+    finally:
+        listener.stop()
+        thread.join(timeout=5)
+
+    assert put.called
+    assert feed.called
+
+
+def test_on_error_decides_between_skip_and_retry(api, client):
+    attempts = []
+
+    class SkippingHandler(EventHandler):
+        def on_access_created(self, event):
+            attempts.append(event.id)
+            raise RuntimeError("cannot grant")
+
+        def on_error(self, event, error):
+            return True
+
+    state_repository = InMemoryStateRepository("unittest")
+    run_listener(api, client, SkippingHandler(), state_repository)
+
+    assert attempts == ["2OzPnlv1OVp20sKQaqRQAl"]
+    assert state_repository.get_state() == {"lastEventId": EVENTS[-1]["id"]}
+
+
+def test_default_on_error_retries_the_same_event(api, client):
+    attempts = []
+
+    class FailingHandler(EventHandler):
+        def on_access_created(self, event):
+            attempts.append(event.id)
+            raise RuntimeError("cannot grant")
+
+    api.get("/api/connectors/unittest").respond(404)
+    api.put("/api/connectors/unittest").respond(200)
+    api.get("/api/events").respond(200, json=EVENTS)
+    state_repository = InMemoryStateRepository("unittest")
+    listener = EventListener(
+        "unittest",
+        "event-listener",
+        client,
+        FailingHandler(),
+        state_repository,
+        poll_interval=timedelta(milliseconds=10),
+        error_backoff=timedelta(milliseconds=10),
+    )
+    thread = threading.Thread(target=listener.start)
+    thread.start()
+    try:
+        for _ in range(200):
+            if len(attempts) >= 2:
+                break
+            threading.Event().wait(0.01)
+    finally:
+        listener.stop()
+        thread.join(timeout=5)
+
+    assert len(attempts) >= 2
+    assert state_repository.get_state() == {"lastEventId": EVENTS[0]["id"]}
+
+
+def test_every_event_type_in_the_spec_has_a_handler():
+    from pathlib import Path
+
+    import yaml
+
+    from entropy_data_sdk.connector.events import _DISPATCH
+
+    spec = yaml.safe_load((Path(__file__).resolve().parent.parent / "spec" / "openapi.yaml").read_text())
+    feed = spec["paths"]["/api/events"]["get"]["responses"][200]["content"]["application/cloudevents-batch+json"]
+    types = feed["schema"]["items"]["properties"]["type"]["x-extensible-enum"]
+
+    missing = [t for t in types if t.rsplit(".", 1)[-1] not in _DISPATCH]
+
+    assert missing == []
+    for method_name, _ in _DISPATCH.values():
+        assert callable(getattr(EventHandler, method_name))
