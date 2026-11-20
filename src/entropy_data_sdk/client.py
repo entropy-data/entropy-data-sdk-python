@@ -45,6 +45,7 @@ class EntropyDataClient:
 
     Use it as a context manager, or call :meth:`close`, to release the connection pool. ``retries`` applies to
     connection failures only; a request the server may have received is never repeated.
+    ``trust_env=False`` ignores the proxy and certificate environment variables.
     """
 
     def __init__(
@@ -55,9 +56,12 @@ class EntropyDataClient:
         timeout: float | httpx.Timeout = DEFAULT_TIMEOUT,
         verify: bool | str = True,
         retries: int = DEFAULT_RETRIES,
+        trust_env: bool = True,
         transport: httpx.BaseTransport | None = None,
     ):
-        self.http = HttpClient(host, api_key, timeout=timeout, verify=verify, retries=retries, transport=transport)
+        self.http = HttpClient(
+            host, api_key, timeout=timeout, verify=verify, retries=retries, trust_env=trust_env, transport=transport
+        )
 
         self.access = AccessApi(self.http)
         self.agent_identities = AgentIdentitiesApi(self.http)

@@ -2,12 +2,14 @@
 
 from __future__ import annotations
 
+import ipaddress
 import re
 from collections.abc import Iterator
 from dataclasses import dataclass
 from importlib.metadata import PackageNotFoundError, version
 from typing import Any, Generic, TypeVar
 from urllib.parse import quote
+from urllib.request import getproxies
 
 import httpx
 from pydantic import BaseModel
@@ -63,6 +65,47 @@ def _json_or_none(response: httpx.Response) -> Any:
     return None
 
 
+def _is_ip_address(host: str) -> bool:
+    try:
+        ipaddress.ip_address(host.split("/")[0])
+    except ValueError:
+        return False
+    return True
+
+
+def environment_proxy_mounts(*, retries: int, verify: bool | str) -> dict[str, httpx.BaseTransport | None]:
+    """Transports for the proxies named by ``HTTP_PROXY``, ``HTTPS_PROXY``, ``ALL_PROXY`` and ``NO_PROXY``.
+
+    httpx reads these variables only when it builds the transport itself, so a client with its own transport has to
+    mount the proxies explicitly. The URL patterns follow the ones httpx derives from the same variables.
+    """
+    proxies = getproxies()
+    no_proxy_hosts = [host.strip() for host in proxies.get("no", "").split(",")]
+    if "*" in no_proxy_hosts:
+        return {}
+
+    mounts: dict[str, httpx.BaseTransport | None] = {}
+    for scheme in ("http", "https", "all"):
+        url = proxies.get(scheme)
+        if url:
+            proxy = url if "://" in url else f"http://{url}"
+            mounts[f"{scheme}://"] = httpx.HTTPTransport(retries=retries, verify=verify, proxy=proxy)
+
+    if not mounts:
+        return {}
+
+    for host in filter(None, no_proxy_hosts):
+        if "://" in host:
+            mounts[host] = None
+        elif _is_ip_address(host):
+            mounts[f"all://[{host}]" if ":" in host else f"all://{host}"] = None
+        elif host.lower() == "localhost":
+            mounts[f"all://{host}"] = None
+        else:
+            mounts[f"all://*{host}"] = None
+    return mounts
+
+
 class Page(list, Generic[T]):
     """One page of a list endpoint. ``has_next`` tells whether the next page number returns more."""
 
@@ -94,11 +137,16 @@ class HttpClient:
         timeout: float | httpx.Timeout = DEFAULT_TIMEOUT,
         verify: bool | str = True,
         retries: int = DEFAULT_RETRIES,
+        trust_env: bool = True,
         transport: httpx.BaseTransport | None = None,
     ):
         self.base_url = host.rstrip("/")
         # Retries cover connection failures only, never a request the server may have seen.
-        transport = transport or httpx.HTTPTransport(retries=retries, verify=verify)
+        mounts = None
+        if transport is None:
+            transport = httpx.HTTPTransport(retries=retries, verify=verify, trust_env=trust_env)
+            if trust_env:
+                mounts = environment_proxy_mounts(retries=retries, verify=verify)
         self._client = httpx.Client(
             base_url=self.base_url,
             headers={
@@ -108,6 +156,8 @@ class HttpClient:
             },
             timeout=timeout,
             transport=transport,
+            mounts=mounts,
+            trust_env=trust_env,
         )
 
     def close(self) -> None:
