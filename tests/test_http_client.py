@@ -1,3 +1,5 @@
+import base64
+
 import httpx
 import pytest
 
@@ -258,7 +260,8 @@ def test_proxy_credentials_from_the_environment_are_sent_to_the_proxy(proxy_env)
 
     with EntropyDataClient("key", "https://api.example.test") as client:
         transport = client.http._client._transport_for_url(httpx.URL("https://api.example.test"))
-        assert dict(transport._pool._proxy_headers)[b"Proxy-Authorization"] == b"Basic dXNlcjpzZWNyZXQ="
+        expected = b"Basic " + base64.b64encode(b"user:secret")
+        assert dict(transport._pool._proxy_headers)[b"Proxy-Authorization"] == expected
 
 
 def test_a_request_travels_through_the_proxy_from_the_environment(proxy_env):
