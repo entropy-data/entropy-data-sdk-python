@@ -11,7 +11,7 @@ All notable changes to this project will be documented in this file.
 ### Fixed
 
 - The client honors the proxy environment variables `HTTP_PROXY`, `HTTPS_PROXY`, `ALL_PROXY` and `NO_PROXY`; they
-  were ignored before
+  were ignored before. SOCKS proxies work without an extra install
 
 ## [0.1.1] - 2026-10-13
 

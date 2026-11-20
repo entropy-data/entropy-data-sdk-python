@@ -78,7 +78,7 @@ Resource ids are validated and percent-encoded before they become part of a URL.
 (`retries=3` by default); a request the server may have received is never repeated.
 
 The client honors the proxy environment variables `HTTP_PROXY`, `HTTPS_PROXY`, `ALL_PROXY` and `NO_PROXY` (upper or
-lower case). `NO_PROXY` is a comma-separated list of hosts, domain suffixes or IP addresses to reach directly; `*`
+lower case). A proxy URL may use `http`, `https`, `socks5` or `socks5h`. `NO_PROXY` is a comma-separated list of hosts, domain suffixes or IP addresses to reach directly; `*`
 turns proxying off. Connection failures are not retried for requests that go through a proxy, and a client created
 with its own `transport` ignores these variables.
 

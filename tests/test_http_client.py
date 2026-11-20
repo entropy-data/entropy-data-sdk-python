@@ -349,3 +349,13 @@ def test_the_environment_is_trusted_by_default(proxy_env):
 
     with EntropyDataClient("key", "https://api.example.test") as client:
         assert client.http._client.trust_env is True
+
+
+def test_a_socks_proxy_from_the_environment_is_used(proxy_env):
+    from entropy_data_sdk import EntropyDataClient
+
+    proxy_env("ALL_PROXY", "socks5://proxy.example.test:1080")
+
+    with EntropyDataClient("key", "https://api.example.test") as client:
+        transport = client.http._client._transport_for_url(httpx.URL("https://api.example.test"))
+        assert type(transport._pool).__name__ == "SOCKSProxy"
