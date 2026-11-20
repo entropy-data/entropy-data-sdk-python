@@ -77,6 +77,14 @@ pseudo-member instead of failing validation, so an SDK release never has to prec
 Resource ids are validated and percent-encoded before they become part of a URL. Connection failures are retried
 (`retries=3` by default); a request the server may have received is never repeated.
 
+The client honors the proxy environment variables `HTTP_PROXY`, `HTTPS_PROXY`, `ALL_PROXY` and `NO_PROXY` (upper or
+lower case). A proxy URL may use `http`, `https`, `socks5` or `socks5h`. `NO_PROXY` is a comma-separated list of hosts, domain suffixes or IP addresses to reach directly; `*`
+turns proxying off. Connection failures are not retried for requests that go through a proxy, and a client created
+with its own `transport` ignores these variables.
+
+Pass `trust_env=False` to ignore the environment: the proxy variables above and the certificate variables
+`SSL_CERT_FILE` and `SSL_CERT_DIR`.
+
 The typed methods cover every endpoint. For anything else, or to read response headers such as the link to the
 resource in the web application, use the generic layer underneath:
 

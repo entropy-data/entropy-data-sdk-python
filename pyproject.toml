@@ -19,7 +19,7 @@ classifiers = [
 ]
 keywords = ["entropy-data", "data-product", "data-contract", "data-mesh", "data-governance", "sdk", "connector"]
 dependencies = [
-    "httpx>=0.28.1",
+    "httpx[socks]>=0.28.1",
     "pydantic>=2.14.1",
 ]
 
