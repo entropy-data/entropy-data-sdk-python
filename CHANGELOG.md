@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added
+
+- `EntropyDataClient(trust_env=False)` ignores the proxy and certificate environment variables
+
 ### Fixed
 
 - The client honors the proxy environment variables `HTTP_PROXY`, `HTTPS_PROXY`, `ALL_PROXY` and `NO_PROXY`; they

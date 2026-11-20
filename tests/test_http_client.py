@@ -233,6 +233,8 @@ def test_http_and_all_proxy_from_the_environment_are_used(proxy_env):
         (".example.test", "https://api.example.test"),
         ("other.test, api.example.test", "https://api.example.test"),
         ("10.1.2.3", "https://10.1.2.3"),
+        ("::1", "https://[::1]:8443"),
+        ("https://api.example.test", "https://api.example.test"),
         ("localhost", "https://localhost:8080"),
         ("*", "https://api.example.test"),
     ],
@@ -247,6 +249,50 @@ def test_no_proxy_hosts_are_reached_directly(proxy_env, no_proxy, url):
         assert _proxy_url(client, f"{url}/api/teams") is None
         if no_proxy != "*":
             assert _proxy_url(client, "https://elsewhere.test") == "http://proxy.example.test:8080"
+
+
+def test_proxy_credentials_from_the_environment_are_sent_to_the_proxy(proxy_env):
+    from entropy_data_sdk import EntropyDataClient
+
+    proxy_env("HTTPS_PROXY", "http://user:secret@proxy.example.test:8080")
+
+    with EntropyDataClient("key", "https://api.example.test") as client:
+        transport = client.http._client._transport_for_url(httpx.URL("https://api.example.test"))
+        assert dict(transport._pool._proxy_headers)[b"Proxy-Authorization"] == b"Basic dXNlcjpzZWNyZXQ="
+
+
+def test_a_request_travels_through_the_proxy_from_the_environment(proxy_env):
+    import threading
+    from http.server import BaseHTTPRequestHandler, HTTPServer
+
+    from entropy_data_sdk import EntropyDataClient
+
+    forwarded = []
+
+    class Proxy(BaseHTTPRequestHandler):
+        def do_GET(self):
+            forwarded.append((self.path, self.headers["x-api-key"]))
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", "2")
+            self.end_headers()
+            self.wfile.write(b"[]")
+
+        def log_message(self, *args):
+            pass
+
+    proxy = HTTPServer(("127.0.0.1", 0), Proxy)
+    threading.Thread(target=proxy.serve_forever, daemon=True).start()
+    try:
+        proxy_env("HTTP_PROXY", f"http://127.0.0.1:{proxy.server_port}")
+        with EntropyDataClient("APIKEY", "http://api.example.test") as client:
+            response = client.http.request("GET", "/api/teams")
+    finally:
+        proxy.shutdown()
+        proxy.server_close()
+
+    assert response.json() == []
+    assert forwarded == [("http://api.example.test/api/teams", "APIKEY")]
 
 
 def test_requests_through_a_proxy_still_send_the_api_key(proxy_env, api):
@@ -269,3 +315,34 @@ def test_an_explicit_transport_ignores_the_proxy_environment(proxy_env):
 
     with EntropyDataClient("key", "https://api.example.test", transport=transport) as client:
         assert client.http._client._transport_for_url(httpx.URL("https://api.example.test")) is transport
+
+
+def test_trust_env_false_ignores_the_proxy_environment(proxy_env):
+    from entropy_data_sdk import EntropyDataClient
+
+    proxy_env("HTTPS_PROXY", "http://proxy.example.test:8080")
+    proxy_env("ALL_PROXY", "http://fallback.example.test:3128")
+
+    with EntropyDataClient("key", "https://api.example.test", trust_env=False) as client:
+        assert _proxy_url(client, "https://api.example.test/api/teams") is None
+        assert _proxy_url(client, "http://api.example.test/api/teams") is None
+        assert client.http._client.trust_env is False
+
+
+def test_trust_env_false_ignores_certificate_variables(proxy_env, tmp_path):
+    from entropy_data_sdk import EntropyDataClient
+
+    proxy_env("SSL_CERT_FILE", str(tmp_path / "missing-ca.pem"))
+
+    with EntropyDataClient("key", "https://api.example.test", trust_env=False) as client:
+        assert client.http._client.trust_env is False
+
+    with pytest.raises(FileNotFoundError):
+        EntropyDataClient("key", "https://api.example.test")
+
+
+def test_the_environment_is_trusted_by_default(proxy_env):
+    from entropy_data_sdk import EntropyDataClient
+
+    with EntropyDataClient("key", "https://api.example.test") as client:
+        assert client.http._client.trust_env is True

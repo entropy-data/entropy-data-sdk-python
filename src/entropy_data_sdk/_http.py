@@ -137,14 +137,16 @@ class HttpClient:
         timeout: float | httpx.Timeout = DEFAULT_TIMEOUT,
         verify: bool | str = True,
         retries: int = DEFAULT_RETRIES,
+        trust_env: bool = True,
         transport: httpx.BaseTransport | None = None,
     ):
         self.base_url = host.rstrip("/")
         # Retries cover connection failures only, never a request the server may have seen.
         mounts = None
         if transport is None:
-            transport = httpx.HTTPTransport(retries=retries, verify=verify)
-            mounts = environment_proxy_mounts(retries=retries, verify=verify)
+            transport = httpx.HTTPTransport(retries=retries, verify=verify, trust_env=trust_env)
+            if trust_env:
+                mounts = environment_proxy_mounts(retries=retries, verify=verify)
         self._client = httpx.Client(
             base_url=self.base_url,
             headers={
@@ -155,6 +157,7 @@ class HttpClient:
             timeout=timeout,
             transport=transport,
             mounts=mounts,
+            trust_env=trust_env,
         )
 
     def close(self) -> None:

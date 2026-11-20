@@ -82,6 +82,9 @@ lower case). `NO_PROXY` is a comma-separated list of hosts, domain suffixes or I
 turns proxying off. Connection failures are not retried for requests that go through a proxy, and a client created
 with its own `transport` ignores these variables.
 
+Pass `trust_env=False` to ignore the environment: the proxy variables above and the certificate variables
+`SSL_CERT_FILE` and `SSL_CERT_DIR`.
+
 The typed methods cover every endpoint. For anything else, or to read response headers such as the link to the
 resource in the web application, use the generic layer underneath:
 
